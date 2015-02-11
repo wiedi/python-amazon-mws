@@ -566,10 +566,120 @@ class Sellers(MWS):
 
 
 class InboundShipments(MWS):
+    """ Amazon MWS FulfillmentInboundShipment API  """
     URI = "/FulfillmentInboundShipment/2010-10-01"
     VERSION = '2010-10-01'
-
-    # To be completed
+    NS = '{http://mws.amazonaws.com/FulfillmentInboundShipment/2010-10-01/}'
+    
+    def get_prep_instructions_for_sku(self, skus=[], country_code=None):
+        """Returns labeling requirements and item preparation instructions
+        to help you prepare items for an inbound shipment.
+        (from: http://docs.developer.amazonservices.com/en_US/fba_inbound/FBAInbound_GetPrepInstructionsForSKU.html)
+        
+        Keyword arguments:
+        skus -- list of SellerSKUs
+        country_code -- 'A two-character country code in ISO 3166 format.'
+        (MWS docs)
+        """
+        if country_code is None:
+            country_code = 'US'
+        data = dict(Action='GetPrepInstructionsForSKU',
+                    ShipToCountryCode=country_code,
+                    )
+        data.update(self.enumerate_param('SellerSKUList.ID.', skus))
+        return self.make_request(data, "POST")
+        
+    def get_prep_instructions_for_asin(self, asins=[], country_code=None):
+        """Returns item preparation instructions to help with
+        item sourcing decisions.
+        (from: http://docs.developer.amazonservices.com/en_US/fba_inbound/FBAInbound_GetPrepInstructionsForASIN.html)
+        
+        Keyword arguments:
+        asins -- list of ASINs
+        country_code -- 'A two-character country code in ISO 3166 format.'
+        (MWS docs)
+        """
+        if country_code is None:
+            country_code = 'US'
+        data = dict(Action='GetPrepInstructionsForASIN',
+                    ShipToCountryCode=country_code,
+                    )
+        data.update(self.enumerate_param('ASINList.ID.', asins))
+        return self.make_request(data, "POST")
+        
+    def get_package_labels(self, shipment_id, num_packages, page_type=None):
+        """Returns PDF document data for printing package labels for
+        an inbound shipment.
+        (from: http://docs.developer.amazonservices.com/en_US/fba_inbound/FBAInbound_GetPackageLabels.html)
+        
+        Arguments:
+        shipment_id -- Inbound shipment ID ('FBA123456...')
+        num_packages -- Number of packages in shipment / # of labels to print
+        
+        Keyword arguments:
+        page_type -- Type of page to print. Expected values:
+            - PackageLabel_Letter_2
+            - PackageLabel_Letter_4
+            - PackageLabel_Letter_6
+            - PackageLabel_A4_2
+            - PackageLabel_A4_4
+            - PackageLabel_Plain_Paper
+        
+        Note:
+        Returns a base64-encoded string of a ZIP archive, which contains a
+        PDF document for the package labels. Also returns a MD5 checksum to
+        validate the file.
+        """
+        data = dict(Action='GetPackageLabels',
+                    ShipmentId=shipment_id,
+                    PageType=page_type,
+                    NumberOfPackages=str(num_packages),
+                    )
+        return self.make_request(data, "POST")
+        
+    def get_transport_content(self, shipment_id):
+        """Returns current transportation information about an inbound shipment.
+        (from: http://docs.developer.amazonservices.com/en_US/fba_inbound/FBAInbound_GetTransportContent.html)
+        
+        Argument:
+        shipment_id -- Inbound shipment ID ('FBA123456...')
+        """
+        data = dict(Action='GetTransportContent',
+                    ShipmentId=shipment_id
+                    )
+        return self.make_request(data, "POST")
+        
+    def void_transport_request(self, shipment_id):
+        """Voids a previously-confirmed request to ship your inbound shipment
+        using an Amazon-partnered carrier.
+        (from: http://docs.developer.amazonservices.com/en_US/fba_inbound/FBAInbound_VoidTransportRequest.html)
+        
+        Argument:
+        shipment_id -- Inbound shipment ID ('FBA123456...')
+        """
+        data = dict(Action='VoidTransportRequest',
+                    ShipmentId=shipment_id
+                    )
+        return self.make_request(data, "POST")
+        
+    def get_bill_of_lading(self, shipment_id):
+        """Returns PDF document data for printing a bill of lading
+        for an inbound shipment.
+        (from: http://docs.developer.amazonservices.com/en_US/fba_inbound/FBAInbound_GetBillOfLading.html)
+        
+        Argument:
+        shipment_id -- Inbound shipment ID ('FBA123456...')
+        
+        Notes:
+        - Returns a base64-encoded string of a ZIP archive, which contains a
+          PDF document for the package labels. Also returns a MD5 checksum to
+          validate the file.
+        - Only works for Amazon-partnered LTL/FTL shipments
+        """
+        data = dict(Action='GetBillOfLading',
+                    ShipmentId=shipment_id
+                    )
+        return self.make_request(data, "POST")
 
 
 class Inventory(MWS):
