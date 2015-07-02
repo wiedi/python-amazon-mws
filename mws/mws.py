@@ -218,8 +218,18 @@ class MWS(object):
             Returns a GREEN, GREEN_I, YELLOW or RED status.
             Depending on the status/availability of the API its being called from.
         """
-
         return self.make_request(extra_data=dict(Action='GetServiceStatus'))
+    
+    def action_by_next_token(self, action, next_token):
+        """Run a '...ByNextToken' action for the given action."""
+        
+        if 'ByNextToken' not in action:
+            action = action + 'ByNextToken'
+        
+        data = dict(Action=action,
+                    NextToken=next_token
+                    )
+        return self.make_request(data)
 
     def calc_signature(self, method, request_description):
         """Calculate MWS signature to interface with Amazon
@@ -566,10 +576,147 @@ class Sellers(MWS):
 
 
 class InboundShipments(MWS):
+    """ Amazon MWS FulfillmentInboundShipment API  """
     URI = "/FulfillmentInboundShipment/2010-10-01"
     VERSION = '2010-10-01'
-
-    # To be completed
+    NS = '{http://mws.amazonaws.com/FulfillmentInboundShipment/2010-10-01/}'
+    
+    def get_prep_instructions_for_sku(self, skus=[], country_code=None):
+        """Returns labeling requirements and item preparation instructions
+        to help you prepare items for an inbound shipment.
+        
+        - skus: list of SellerSKUs
+        - country_code: 'A two-character country code in ISO 3166 format.'
+        (MWS docs)
+        """
+        if country_code is None:
+            country_code = 'US'
+        data = dict(Action='GetPrepInstructionsForSKU',
+                    ShipToCountryCode=country_code,
+                    )
+        data.update(self.enumerate_param('SellerSKUList.ID.', skus))
+        return self.make_request(data, "POST")
+        
+    def get_prep_instructions_for_asin(self, asins=[], country_code=None):
+        """Returns item preparation instructions to help with
+        item sourcing decisions.
+        
+        - asins: list of ASINs
+        - country_code: 'A two-character country code in ISO 3166 format.'
+        (MWS docs)
+        """
+        if country_code is None:
+            country_code = 'US'
+        data = dict(Action='GetPrepInstructionsForASIN',
+                    ShipToCountryCode=country_code,
+                    )
+        data.update(self.enumerate_param('ASINList.ID.', asins))
+        return self.make_request(data, "POST")
+        
+    def get_package_labels(self, shipment_id, num_packages, page_type=None):
+        """Returns PDF document data for printing package labels for
+        an inbound shipment.
+        
+        - shipment_id: Inbound shipment ID ('FBA123456...')
+        - num_packages: Number of packages in shipment / # of labels to print
+        - page_type: Type of page to print. Expected values:
+            PackageLabel_Letter_2
+            PackageLabel_Letter_4
+            PackageLabel_Letter_6
+            PackageLabel_A4_2
+            PackageLabel_A4_4
+            PackageLabel_Plain_Paper
+        
+        Note:
+        Returns a base64-encoded string of a ZIP archive, which contains a
+        PDF document for the package labels. Also returns a MD5 checksum to
+        validate the file.
+        """
+        data = dict(Action='GetPackageLabels',
+                    ShipmentId=shipment_id,
+                    PageType=page_type,
+                    NumberOfPackages=str(num_packages),
+                    )
+        return self.make_request(data, "POST")
+        
+    def get_transport_content(self, shipment_id):
+        """Returns current transportation information about an inbound shipment.
+        
+        Argument:
+        - shipment_id: Inbound shipment ID ('FBA123456...')
+        """
+        data = dict(Action='GetTransportContent',
+                    ShipmentId=shipment_id
+                    )
+        return self.make_request(data, "POST")
+    
+    def estimate_transport_request(self, shipment_id):
+        """Requests an estimate of the shipping cost for an inbound shipment."""
+        data = dict(Action='EstimateTransportRequest',
+                    ShipmentId=shipment_id,
+                    )
+        return self.make_request(data, "POST")
+        
+    def void_transport_request(self, shipment_id):
+        """Voids a previously-confirmed request to ship your inbound shipment
+        using an Amazon-partnered carrier.
+        
+        - shipment_id: Inbound shipment ID ('FBA123456...')
+        """
+        data = dict(Action='VoidTransportRequest',
+                    ShipmentId=shipment_id
+                    )
+        return self.make_request(data, "POST")
+        
+    def get_bill_of_lading(self, shipment_id):
+        """Returns PDF document data for printing a bill of lading
+        for an inbound shipment.
+        
+        - shipment_id: Inbound shipment ID ('FBA123456...')
+        
+        Notes:
+        - Returns a base64-encoded string of a ZIP archive, which contains a
+          PDF document for the package labels. Also returns a MD5 checksum to
+          validate the file.
+        - Only works for Amazon-partnered LTL/FTL shipments
+        """
+        data = dict(Action='GetBillOfLading',
+                    ShipmentId=shipment_id
+                    )
+        return self.make_request(data, "POST")
+    
+    def list_inbound_shipments(self, shipment_ids=None, shipment_statuses=None,
+                               last_updated_after=None, last_updated_before=None):
+        """Returns list of shipments based on statuses, IDs, and/or
+        before/after datetimes
+        
+        - shipment_ids: list of IDs. Optional.
+        - shipment_statuses: list of statuses. Optional.
+        - last_updated_after: datetime at the BEGINNING of the update window. Optional.
+        - last_updated_before: datetime at the END of the update window. Optional.
+        """
+        data = dict(Action='ListInboundShipments',
+                    LastUpdatedAfter=last_updated_after,
+                    LastUpdatedBefore=last_updated_before,
+                    )
+        data.update(self.enumerate_param('ShipmentStatusList.member.', shipment_statuses))
+        data.update(self.enumerate_param('ShipmentIdList.member.', shipment_ids))
+        return self.make_request(data, "POST")
+    
+    def list_inbound_shipment_items(self, shipment_id=None, last_updated_after=None,
+                                    last_updated_before=None):
+        """Returns list of items within inbound shipments and/or before/after datetimes
+        
+        - shipment_id: Inbound shipment ID ('FBA123456...'). Optional.
+        - last_updated_after: datetime at the BEGINNING of the update window. Optional.
+        - last_updated_before: datetime at the END of the update window. Optional.
+        """
+        data = dict(Action='ListInboundShipmentItems',
+                    ShipmentId=shipment_id,
+                    LastUpdatedAfter=last_updated_after,
+                    LastUpdatedBefore=last_updated_before,
+                    )
+        return self.make_request(data, "POST")
 
 
 class Inventory(MWS):
