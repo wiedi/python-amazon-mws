@@ -92,11 +92,15 @@ def remove_empty(d):
 
 
 def remove_namespace(xml):
-    #-G: getting TypeError "can't use a string pattern on a bytes-like object"
-    #    decoding first
-    xml2 = xml.decode('utf-8')
     regex = re.compile(' xmlns(:ns2)?="[^"]+"|(ns2:)|(xml:)')
-    return regex.sub('', xml2)
+    try:
+        out = regex.sub('', xml)
+    except TypeError:
+        # In Py3 version, would get this saying
+        # "can't use a string pattern on a bytes-like object"
+        # decoding the output first.
+        out = regex.sub('', xml.decode('utf-8'))
+    return out
 
 
 class DictWrapper(object):
