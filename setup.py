@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup, find_packages
 
-version = '0.6'
+version = '0.6.1'
 
 REQUIREMENTS = ['requests']
 
@@ -15,9 +15,10 @@ CLASSIFIERS = [
     'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
     'Topic :: Software Development',
     'Topic :: Software Development :: Libraries :: Application Frameworks',
-    "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 2.6",
-    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3.4",
+    #"Programming Language :: Python :: 2",
+    #"Programming Language :: Python :: 2.6",
+    #"Programming Language :: Python :: 2.7",
 ]
 
 setup(
