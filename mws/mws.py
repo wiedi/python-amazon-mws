@@ -22,7 +22,7 @@ from time import strftime, gmtime
 
 from requests import request
 from requests.exceptions import HTTPError
- 
+
 
 __all__ = [
     'Feeds',
