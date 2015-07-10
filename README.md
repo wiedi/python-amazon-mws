@@ -3,7 +3,7 @@
 
 *This is a work in progress: please use caution if you want to utilize this code.*
 
-*All other documentation is from the project's original authors and are untouched at this time.*
+*All other documentation is from the project's original authors and is untouched at this time.*
 
 *- GriceTurrble*
 
