@@ -3,13 +3,16 @@
 #
 # Basic interface to Amazon MWS
 # Based on http://code.google.com/p/amazon-mws-python
+# #-G: making updates to attempt to hack this project into a
+#      workable state on Python 3 and Django 1.7
+#      My changes can be found by searching for '#-G'
 #
 
 import urllib
 import hashlib
 import hmac
 import base64
-import utils
+from . import utils #-G: added `from . ` in front
 import re
 try:
     from xml.etree.ElementTree import ParseError as XMLError
@@ -63,7 +66,8 @@ def calc_md5(string):
     """
     md = hashlib.md5()
     md.update(string)
-    return base64.encodestring(md.digest()).strip('\n')
+    #-G: per commit by bloodywing, making the strip `b'\n'`
+    return base64.encodestring(md.digest()).strip(b'\n')
 
 
 def remove_empty(d):
@@ -71,15 +75,28 @@ def remove_empty(d):
         Helper function that removes all keys from a dictionary (d),
         that have an empty value.
     """
+    #-G: The method below cannot be used: throws an error about the size
+    #    of the dict changing during iteration.
+    #    Instead of deleting bad keys from the original, we simply make
+    #    a new dict with the new keys.
+    '''
     for key in d.keys():
         if not d[key]:
             del d[key]
-    return d
+    '''
+    new_d = {}
+    for key in d.keys():
+        if d[key]:
+            new_d[key] = d[key]
+    return new_d
 
 
 def remove_namespace(xml):
+    #-G: getting TypeError "can't use a string pattern on a bytes-like object"
+    #    decoding first
+    xml2 = xml.decode('utf-8')
     regex = re.compile(' xmlns(:ns2)?="[^"]+"|(ns2:)|(xml:)')
-    return regex.sub('', xml)
+    return regex.sub('', xml2)
 
 
 class DictWrapper(object):
@@ -87,7 +104,10 @@ class DictWrapper(object):
         self.original = xml
         self._rootkey = rootkey
         self._mydict = utils.xml2dict().fromstring(remove_namespace(xml))
-        self._response_dict = self._mydict.get(self._mydict.keys()[0],
+        #-G: dict_keys object is generated when _mydict.keys() is called,
+        #    which behaves like a set, not a list.
+        #    Converting to list first
+        self._response_dict = self._mydict.get(list(self._mydict.keys())[0],
                                                self._mydict)
 
     @property
@@ -96,6 +116,14 @@ class DictWrapper(object):
             return self._response_dict.get(self._rootkey)
         else:
             return self._response_dict
+    
+    #-G: Need access to the request id from the metadata
+    #    This property grabs it from the response_dict
+    #    (it was already being stored)
+    #    TypicalUse: '.metadata.RequestId'
+    @property
+    def metadata(self):
+        return self._response_dict.get('ResponseMetadata')
 
 
 class DataWrapper(object):
@@ -167,21 +195,26 @@ class MWS(object):
         # Remove all keys with an empty value because
         # Amazon's MWS does not allow such a thing.
         extra_data = remove_empty(extra_data)
+        #-G: storing timestamp for use later
+        now = self.get_timestamp()
 
         params = {
             'AWSAccessKeyId': self.access_key,
             self.ACCOUNT_TYPE: self.account_id,
             'SignatureVersion': '2',
-            'Timestamp': self.get_timestamp(),
+            'Timestamp': now, #-G: calling that stored timestamp
             'Version': self.version,
             'SignatureMethod': 'HmacSHA256',
         }
         if self.auth_token:
             params['MWSAuthToken'] = self.auth_token
         params.update(extra_data)
-        request_description = '&'.join(['%s=%s' % (k, urllib.quote(params[k], safe='-_.~').encode('utf-8')) for k in sorted(params)])
+        #-G: urllib in Py3 has uses the module '.parse' for this functionality.
+        #    Injecting this module into the urllib calls on both lines
+        #-G: removing the encoding from the parse.quote call (was `.encode('utf-8')`)
+        request_description = '&'.join(['%s=%s' % (k, urllib.parse.quote(params[k], safe='-_.~')) for k in sorted(params)])
         signature = self.calc_signature(method, request_description)
-        url = '%s%s?%s&Signature=%s' % (self.domain, self.uri, request_description, urllib.quote(signature))
+        url = '%s%s?%s&Signature=%s' % (self.domain, self.uri, request_description, urllib.parse.quote(signature))
         headers = {'User-Agent': 'python-amazon-mws/0.0.1 (Language=Python)'}
         headers.update(kwargs.get('extra_headers', {}))
 
@@ -204,13 +237,16 @@ class MWS(object):
             except XMLError:
                 parsed_response = DataWrapper(data, response.headers)
 
-        except HTTPError, e:
-            error = MWSError(str(e.response.text))
+        except HTTPError as e: #-G: changed `,` to `as` (required in Py3)
+            error = MWSError(str(e))
             error.response = e.response
             raise error
 
         # Store the response object in the parsed_response for quick access
         parsed_response.response = response
+        parsed_response.timestamp = now
+        #-G: MWS recommends saving metadata and timestamp.
+        #    This makes it available in the parsed_response
         return parsed_response
 
     def get_service_status(self):
@@ -235,7 +271,10 @@ class MWS(object):
         """Calculate MWS signature to interface with Amazon
         """
         sig_data = method + '\n' + self.domain.replace('https://', '').lower() + '\n' + self.uri + '\n' + request_description
-        return base64.b64encode(hmac.new(str(self.secret_key), sig_data, hashlib.sha256).digest())
+        #-G: `hmac` in Py3 takes bytes or a bytesarray, not a str.
+        #    Transforming `self.secret_key` and `sig_data` into bytearrays
+        #    by adding .encode('utf-8') to the end of each (testing...)
+        return base64.b64encode(hmac.new(str(self.secret_key).encode('utf-8'), sig_data.encode('utf-8'), hashlib.sha256).digest())
 
     def get_timestamp(self):
         """
