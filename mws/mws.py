@@ -33,6 +33,7 @@ __all__ = [
     'Products',
     'Recommendations',
     'Sellers',
+    'InboundShipments',
 ]
 
 # List of MWS endpoints and MarketplaceId values:
