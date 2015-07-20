@@ -22,6 +22,7 @@ from datetime import datetime
 
 from requests import request
 from requests.exceptions import HTTPError
+from dateutil.parser import parse as dt_parse
 
 
 __all__ = [
@@ -82,6 +83,20 @@ def remove_empty(d):
     #    return a new dict comprehension for truthy values
     return {k: v for k, v in d.items() if v}
 
+
+def dt_iso_or_none(d):
+    """ If d is a datetime, convert to isoformat
+        Otherwise, return None
+    """
+    # If d is a datetime object, format it to iso and return
+    if isinstance(d, datetime):
+        return d.isoformat()
+        
+    # if d is a string in iso8601 already, return it
+    # # pass for now
+    
+    # none of the above: return None
+    return None
 
 def remove_namespace(xml):
     regex = re.compile(' xmlns(:ns2)?="[^"]+"|(ns2:)|(xml:)')
@@ -272,7 +287,7 @@ class MWS(object):
         # Store the response object in the parsed_response for quick access
         parsed_response.response = response
         # MWS recommends saving timestamp, so we make it available.
-        parsed_response.timestamp = now
+        parsed_response.timestamp = dt_parse(now)
         return parsed_response
 
     def get_service_status(self):
@@ -517,11 +532,14 @@ class Reports(MWS):
         return self.make_request(data)
 
     def get_report_request_count(self, report_types=(), processingstatuses=(),
-                                 fromdate=None, todate=None):
+                                 from_date=None, to_date=None):
+        from_date = dt_iso_or_none(from_date)
+        to_date = dt_iso_or_none(to_date)
+        
         data = dict(
             Action='GetReportRequestCount',
-            RequestedFromDate=fromdate,
-            RequestedToDate=todate
+            RequestedFromDate=from_date,
+            RequestedToDate=to_date
         )
         data.update(self.enumerate_params({
             'ReportTypeList.Type.': report_types,
@@ -531,12 +549,15 @@ class Reports(MWS):
 
     def get_report_request_list(self, requestids=(), types=(),
                                 processingstatuses=(), max_count=None,
-                                fromdate=None, todate=None):
+                                from_date=None, to_date=None):
+        from_date = dt_iso_or_none(from_date)
+        to_date = dt_iso_or_none(to_date)
+        
         data = dict(
             Action='GetReportRequestList',
             MaxCount=max_count,
-            RequestedFromDate=fromdate,
-            RequestedToDate=todate
+            RequestedFromDate=from_date,
+            RequestedToDate=to_date
         )
         data.update(self.enumerate_params({
             'ReportRequestIdList.Id.': requestids,
@@ -593,20 +614,25 @@ class Orders(MWS):
     ]
 
     def list_orders(self, marketplaceids, created_after=None,
-                    created_before=None, lastupdatedafter=None,
-                    lastupdatedbefore=None, orderstatus=(),
+                    created_before=None, last_updated_after=None,
+                    last_updated_before=None, orderstatus=(),
                     fulfillment_channels=(), payment_methods=(),
                     buyer_email=None, seller_orderid=None,
                     max_results='100'):
         """ Returns orders created or updated during a
             time frame that you specify.
         """
+        created_after = dt_iso_or_none(created_after)
+        created_before = dt_iso_or_none(created_before)
+        last_updated_after = dt_iso_or_none(last_updated_after)
+        last_updated_before = dt_iso_or_none(last_updated_before)
+        
         data = dict(
             Action='ListOrders',
             CreatedAfter=created_after,
             CreatedBefore=created_before,
-            LastUpdatedAfter=lastupdatedafter,
-            LastUpdatedBefore=lastupdatedbefore,
+            LastUpdatedAfter=last_updated_after,
+            LastUpdatedBefore=last_updated_before,
             BuyerEmail=buyer_email,
             SellerOrderId=seller_orderid,
             MaxResultsPerPage=max_results,
@@ -911,8 +937,11 @@ class InboundShipments(MWS):
                                last_updated_after=None,
                                last_updated_before=None):
         """ Returns list of shipments based on statuses, IDs, and/or
-            before/after datetimes
+            before/after datetimes.
         """
+        last_updated_after = dt_iso_or_none(last_updated_after)
+        last_updated_before = dt_iso_or_none(last_updated_before)
+        
         data = dict(
             Action='ListInboundShipments',
             LastUpdatedAfter=last_updated_after,
@@ -930,6 +959,9 @@ class InboundShipments(MWS):
         """ Returns list of items within inbound shipments and/or
             before/after datetimes.
         """
+        last_updated_after = dt_iso_or_none(last_updated_after)
+        last_updated_before = dt_iso_or_none(last_updated_before)
+        
         data = dict(
             Action='ListInboundShipmentItems',
             ShipmentId=shipment_id,
