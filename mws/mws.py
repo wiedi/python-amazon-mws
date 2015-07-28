@@ -864,7 +864,7 @@ class InboundShipments(MWS):
         data.update(self.enumerate_params({
             'SellerSKUList.ID.': skus,
         }))
-        return self.make_request(data, "POST")
+        return self.make_request(data, method="POST")
         
     def get_prep_instructions_for_asin(self, asins=[], country_code=None):
         """ Returns item preparation instructions to help with
@@ -879,7 +879,7 @@ class InboundShipments(MWS):
         data.update(self.enumerate_param({
             'ASINList.ID.': asins,
         }))
-        return self.make_request(data, "POST")
+        return self.make_request(data, method="POST")
         
     def get_package_labels(self, shipment_id, num_packages, page_type=None):
         """ Returns PDF document data for printing package labels for
@@ -891,7 +891,7 @@ class InboundShipments(MWS):
             PageType=page_type,
             NumberOfPackages=str(num_packages),
         )
-        return self.make_request(data, "POST")
+        return self.make_request(data, method="POST")
         
     def get_transport_content(self, shipment_id):
         """ Returns current transportation information about an
@@ -901,7 +901,7 @@ class InboundShipments(MWS):
             Action='GetTransportContent',
             ShipmentId=shipment_id
         )
-        return self.make_request(data, "POST")
+        return self.make_request(data, method="POST")
     
     def estimate_transport_request(self, shipment_id):
         """ Requests an estimate of the shipping cost for an inbound shipment.
@@ -910,7 +910,7 @@ class InboundShipments(MWS):
             Action='EstimateTransportRequest',
             ShipmentId=shipment_id,
         )
-        return self.make_request(data, "POST")
+        return self.make_request(data, method="POST")
         
     def void_transport_request(self, shipment_id):
         """ Voids a previously-confirmed request to ship your inbound shipment
@@ -920,7 +920,7 @@ class InboundShipments(MWS):
             Action='VoidTransportRequest',
             ShipmentId=shipment_id
         )
-        return self.make_request(data, "POST")
+        return self.make_request(data, method="POST")
         
     def get_bill_of_lading(self, shipment_id):
         """ Returns PDF document data for printing a bill of lading
@@ -951,7 +951,7 @@ class InboundShipments(MWS):
             'ShipmentStatusList.member.': shipment_statuses,
             'ShipmentIdList.member.': shipment_ids,
         }))
-        return self.make_request(data, "POST")
+        return self.make_request(data, method="POST")
     
     def list_inbound_shipment_items(self, shipment_id=None,
                                     last_updated_after=None,
@@ -968,7 +968,7 @@ class InboundShipments(MWS):
             LastUpdatedAfter=last_updated_after,
             LastUpdatedBefore=last_updated_before,
         )
-        return self.make_request(data, "POST")
+        return self.make_request(data, method="POST")
 
 
 class Inventory(MWS):
