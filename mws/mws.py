@@ -96,9 +96,6 @@ def remove_namespace(xml):
     try:
         out = regex.sub('', xml)
     except TypeError:
-        #-G: In Py3 version, would get this saying
-        # "can't use a string pattern on a bytes-like object"
-        # decoding the output first.
         out = regex.sub('', xml.decode('utf-8'))
     return out
 
@@ -108,9 +105,6 @@ class DictWrapper(object):
         self.original = xml
         self._rootkey = rootkey
         self._mydict = utils.xml2dict().fromstring(remove_namespace(xml))
-        #-G: .keys() generates a dict_keys object,
-        #    which cannot be indexed in Py3.
-        #    Converting to list first.
         self._response_dict = self._mydict.get(
             list(self._mydict.keys())[0],
             self._mydict
@@ -130,7 +124,6 @@ class DictWrapper(object):
         cannot be seen in `.parsed`.
         
         Typical use: '.metadata.RequestId'
-        #-G
         """
         return self._response_dict.get('ResponseMetadata')
 
@@ -217,14 +210,13 @@ class MWS(object):
         # Remove all keys with an empty value because
         # Amazon's MWS does not allow such a thing.
         extra_data = remove_empty(extra_data)
-        #-G: storing timestamp for use later
         now = self.get_timestamp()
 
         params = {
             'AWSAccessKeyId': self.access_key,
             self.ACCOUNT_TYPE: self.account_id,
             'SignatureVersion': '2',
-            'Timestamp': now, #-G: calling that stored timestamp
+            'Timestamp': now,
             'Version': self.version,
             'SignatureMethod': 'HmacSHA256',
         }
@@ -291,9 +283,10 @@ class MWS(object):
         return parsed_response
 
     def get_service_status(self):
-        """ Returns a GREEN, GREEN_I, YELLOW or RED status,
-            depending on the status/availability of the API
-            it's being called from.
+        """
+        Returns a GREEN, GREEN_I, YELLOW or RED status,
+        depending on the status/availability of the API
+        it's being called from.
         """
         return self.make_request(extra_data=dict(Action='GetServiceStatus'))
     
@@ -330,9 +323,6 @@ class MWS(object):
             self.uri,
             request_description
         ])
-        #-G: `hmac` in Py3 takes bytes or a bytesarray, not a str.
-        #    Transforming `self.secret_key` and `sig_data` into bytearrays
-        #    by adding .encode('utf-8') to the end of each (testing...)
         return base64.b64encode(
             hmac.new(str(self.secret_key).encode('utf-8'),
             sig_data.encode('utf-8'),
@@ -350,7 +340,7 @@ class MWS(object):
         Builds a dictionary of an enumerated parameter.
         Takes any iterable and returns a dictionary.
         example:
-          enumerate_param('MarketplaceIdList.Id', (123, 345, 4343))
+          _enumerate_param('MarketplaceIdList.Id', (123, 345, 4343))
         returns:
           {
               MarketplaceIdList.Id.1: 123,
@@ -364,7 +354,7 @@ class MWS(object):
         
         # Ensure this enumerated param ends in '.'
         if not param.endswith('.'):
-            param = '{}.'.format(param)
+            param += '.'
         
         # Return a dict comprehension of the param, enumerated,
         # with its associated values.
@@ -391,10 +381,9 @@ class MWS(object):
         
         return params_output
     
-    def enumerate_keyed_params(self, param, values):
+    def enumerate_keyed_param(self, param, values):
         """
-        Takes a param and a list of dicts containing multiple values
-        for the same param member. Returns a dict of enumerated params, expanded to include
+        Takes a parameter and a list of dicts of values. Each dict in the list 
         - Example:
         param = "InboundShipmentPlanRequestItems.member"
         values = [
@@ -412,15 +401,33 @@ class MWS(object):
             'InboundShipmentPlanRequestItems.member.2.Quantity': 5,
         }
         """
-        # Shortcut for empty values
         if not values:
+            # Shortcut for empty values
             return {}
         
-        # Ensure the enumerated param ends in '.'
         if not param.endswith('.'):
-            param = '{}.'.format(param)
+            # Ensure the enumerated param ends in '.'
+            param += '.'
         
-        # TODO: finish this function
+        if not isinstance(values, list) and not isinstance(values, tuple):
+            # If it's a single value dict, convert it to a list first
+            values = [values,]
+        
+        if not isinstance(values[0], dict):
+            # Value is not a dict: can't work on it here.
+            raise MWSError((
+                "Values must be in the form of either a list or "
+                "tuple of dictionaries."
+            ))
+        
+        params = {}
+        for idx, val_dict in enumerate(values):
+            params.update({
+                '{param}{idx}.{key}'.format(param=param, idx=idx+1, key=k): v
+                for k, v in val_dict.items()
+            })
+        
+        return params
         
 
 class Feeds(MWS):
@@ -922,58 +929,104 @@ class InboundShipments(MWS):
         'ListInboundShipmentItems',
     ]
     
-    def create_inbound_shipment_plan(self, from_address={}, skus=[],
-                                     shipto_country=None,
-                                     shipto_country_sub=None,
-                                     label_preference=None):
+    def create_inbound_shipment_plan(self, *args, **kwargs):
         """
         Returns one or more inbound shipment plans, which provide the
         information you need to create one or more inbound shipments for
         a set of items that you specify.
         
-        `from_address`: dictionary of strings containing ShipFromAddress data
+        One or more dictionaries must be passed as positional arguments.
+        Each dictionary must contain the following keys:
+          REQUIRED:
+            sku
+            quantity
+          OPTIONAL:
+            asin
+            condition
+            quantity_in_case
         
-        Required keys of `address`:
-            name            -> ShipFromAddress.Name
-            address1        -> ShipFromAddress.AddressLine1
-            city            -> ShipFromAddress.City
-            country         -> ShipFromAddress.CountryCode
-        Optional keys of `address`:
-            address2        -> ShipFromAddress.AddressLine2
-            state           -> ShipFromAddress.StateOrProvinceCode
-            province        -> ShipFromAddress.StateOrProvinceCode
-            district        -> ShipFromAddress.DistrictOrCounty
-            county          -> ShipFromAddress.DistrictOrCounty
-            postal_code     -> ShipFromAddress.PostalCode
+        `from_address`: REQUIRED keyword argument.
+        Dictionary of strings containing ShipFromAddress data
+          REQUIRED:
+            name
+            address_1
+            city
+            country
+          OPTIONAL:
+            address_2
+            state_or_province
+            district_or_county
+            postal_code
         
-        `skus`: tuple or list, containing tuples or lists.
-        Each inner sequence should consist of a string for the SKU
-        and an integer for its quantity.
-        - Example
-        skus = (
-            ("A_SKU", 50),
-            ("B_SKU", 25),
-        )
-        
-        Other optional arguments:
-        `shipto_country`      -> ShipToCountryCode
-        `shipto_country_sub`  -> ShipToCountrySubdivisionCode
-        `label_preference`    -> LabelPrepPreference
+        Other keyword arguments accepted:
+        `country_code`      -> ShipToCountryCode
+        `subdivision_code`  -> ShipToCountrySubdivisionCode
+        `label_preference`  -> LabelPrepPreference
         """
-        if not from_address:
-            raise MWSError((
-                "Keyword argument 'from_address' required in "
-                "create_inbound_shipment_plan()."
-            ))
-        if not all([from_address.get('name'),
-                    from_address.get('address1'),
-                    from_address.get('city'),
-                    from_address.get('country')]):
+        from_address = kwargs.get('from_address')
+        if from_address is None:
+            raise MWSError('Missing from_address keyword argument (Required)')
+        country_code = kwargs.get('country_code', 'US')
+        subdivision_code = kwargs.get('subdivision_code')
+        label_preference = kwargs.get('label_preference')
+        
+        if not isinstance(from_address, dict):
+            raise MWSError("from_address must be a dictionary")
+        if not all(k in from_address
+                   for k in ('name', 'address_1', 'city', 'country')):
             # Required parts of from_address missing
             raise MWSError((
-                "Required keys of 'from_address' dictionary missing or empty: "
-                "'name', 'address1', 'city', 'country'."
+                "REQUIRED keys missing from `from_address`: 'name', "
+                "'address_1', 'city'"
+                "\n[OPTIONAL: 'address2', 'state_or_province', "
+                "'district_or_county', 'postal_code', 'country' "
+                "(country defaults to 'US')]."
             ))
+        
+        parsed_address = {
+            'Name': from_address.get('name'),
+            'AddressLine1': from_address.get('address_1'),
+            'AddressLine2': from_address.get('address_2'),
+            'City': from_address.get('city'),
+            'DistrictOrCounty': from_address.get('district_or_county'),
+            'StateOrProvinceCode': from_address.get('state_or_province'),
+            'CountryCode': from_address.get('country', 'US'),
+            'PostalCode': from_address.get('postal_code'),
+        }
+        parsed_address = {'ShipFromAddress.{}'.format(k): v
+                          for k, v in parsed_address.items()}
+        items = []
+        if not args:
+            raise MWSError("One or more item dictionary arguments REQUIRED.")
+        
+        for a in args:
+            if not isinstance(a, dict):
+                raise MWSError("item argument must be a dictionary.")
+            if not all(k in a for k in ('sku', 'quantity')):
+                # Required keys of an item line missing
+                raise MWSError((
+                    "item dictionary missing REQUIRED keys: 'sku', 'quantity'"
+                    "\n[OPTIONAL keys: 'asin', 'condition', 'quantity_in_case']"
+                ))
+            items.append({
+                'SellerSKU': a.get('sku'),
+                'Quantity': a.get('quantity'),
+                'ASIN': a.get('asin'),
+                'Condition': a.get('condition'),
+                'QuantityInCase': a.get('quantity_in_case'),
+            })
+        
+        data = dict(
+            Action='CreateInboundShipmentPlan',
+            ShipToCountryCode=country_code,
+            ShipToCountrySubdivisionCode=subdivision_code,
+            LabelPrepPreference=label_preference,
+        )
+        data.update(parsed_address)
+        data.update(self.enumerate_keyed_param(
+            'InboundShipmentPlanRequestItem.member', items,
+        ))
+        return self.make_request(data, method="POST")
     
     def get_prep_instructions_for_sku(self, skus=[], country_code=None):
         """
@@ -1002,7 +1055,7 @@ class InboundShipments(MWS):
             Action='GetPrepInstructionsForASIN',
             ShipToCountryCode=country_code,
         )
-        data.update(self.enumerate_param({
+        data.update(self.enumerate_params({
             'ASINList.ID.': asins,
         }))
         return self.make_request(data, method="POST")
