@@ -929,7 +929,7 @@ class InboundShipments(MWS):
         'ListInboundShipmentItems',
     ]
     
-    def create_inbound_shipment_plan(self, *args, **kwargs):
+    def create_inbound_shipment_plan(self, *args, from_address={}, **kwargs):
         """
         Returns one or more inbound shipment plans, which provide the
         information you need to create one or more inbound shipments for
@@ -937,34 +937,21 @@ class InboundShipments(MWS):
         
         One or more dictionaries must be passed as positional arguments.
         Each dictionary must contain the following keys:
-          REQUIRED:
-            sku
-            quantity
-          OPTIONAL:
-            asin
-            condition
-            quantity_in_case
+          REQUIRED: 'sku', 'quantity'
+          OPTIONAL: 'asin', 'condition', 'quantity_in_case'
         
-        `from_address`: REQUIRED keyword argument.
-        Dictionary of strings containing ShipFromAddress data
-          REQUIRED:
-            name
-            address_1
-            city
-            country
-          OPTIONAL:
-            address_2
-            state_or_province
-            district_or_county
-            postal_code
+        Keyword arguments:
+        'from_address' (required). Dictionary of strings containing
+        ShipFromAddress data
+            REQUIRED: 'name', 'address_1', 'city', 'country'
+            OPTIONAL: 'address_2', 'state_or_province',
+                      'district_or_county', 'postal_code'
         
-        Other keyword arguments accepted:
-        `country_code`      -> ShipToCountryCode
-        `subdivision_code`  -> ShipToCountrySubdivisionCode
-        `label_preference`  -> LabelPrepPreference
+        'country_code' (optional) [defaults to 'US']
+        'subdivision_code' (optional)
+        'label_preference' (optional)
         """
-        from_address = kwargs.get('from_address')
-        if from_address is None:
+        if not from_address:
             raise MWSError('Missing from_address keyword argument (Required)')
         country_code = kwargs.get('country_code', 'US')
         subdivision_code = kwargs.get('subdivision_code')
@@ -973,7 +960,7 @@ class InboundShipments(MWS):
         if not isinstance(from_address, dict):
             raise MWSError("from_address must be a dictionary")
         if not all(k in from_address
-                   for k in ('name', 'address_1', 'city', 'country')):
+                   for k in ('name', 'address_1', 'city')):
             # Required parts of from_address missing
             raise MWSError((
                 "REQUIRED keys missing from `from_address`: 'name', "
@@ -1010,10 +997,10 @@ class InboundShipments(MWS):
                 ))
             items.append({
                 'SellerSKU': a.get('sku'),
-                'Quantity': a.get('quantity'),
+                'Quantity': str(a.get('quantity')),
                 'ASIN': a.get('asin'),
                 'Condition': a.get('condition'),
-                'QuantityInCase': a.get('quantity_in_case'),
+                'QuantityInCase': str(a.get('quantity_in_case')),
             })
         
         data = dict(
