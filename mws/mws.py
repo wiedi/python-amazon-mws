@@ -331,12 +331,6 @@ class MWS(object):
             hashlib.sha256).digest()
         )
 
-    def get_timestamp(self):
-        """
-        Returns the current timestamp in ISO 8601 format.
-        """
-        return datetime.utcnow().isoformat()
-
     def _enumerate_param(self, param, values):
         """
         Builds a dictionary of an enumerated parameter.
