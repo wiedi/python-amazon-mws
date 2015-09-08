@@ -111,10 +111,13 @@ class DictWrapper(object):
 
     @property
     def parsed(self):
+        root = None
         if self._rootkey:
-            return self._response_dict.get(self._rootkey)
-        else:
-            return self._response_dict
+            root = self._response_dict.get(self._rootkey)
+        if root is None:
+            root = self._response_dict
+        
+        return root
     
     @property
     def metadata(self):
