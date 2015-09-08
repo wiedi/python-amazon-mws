@@ -338,9 +338,11 @@ class MWS(object):
             request_description
         ])
         return base64.b64encode(
-            hmac.new(str(self.secret_key).encode('utf-8'),
-            sig_data.encode('utf-8'),
-            hashlib.sha256).digest()
+            hmac.new(
+                str(self.secret_key).encode('utf-8'),
+                sig_data.encode('utf-8'),
+                hashlib.sha256
+            ).digest()
         )
 
     def _enumerate_param(self, param, values):
