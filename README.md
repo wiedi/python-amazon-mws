@@ -1,12 +1,3 @@
-### * Special Note *
-*I am actively using and updating this fork of the project for work purposes. This version includes edits to the original making it work in Python 3.4, but it no longer supports 2.7.*
-
-*This is a work in progress: please use caution if you want to utilize this code.*
-
-*All other documentation is from the project's original authors and is untouched at this time.*
-
-*- GriceTurrble*
-
 # ** DISCLAIMER **
 This API is in constant development. Do not rely on it too much until its in stable release.
 All except for the last two APIs ( InboundShipment and OutboundShipment ) are complete.
