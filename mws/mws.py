@@ -90,6 +90,7 @@ def dt_iso_or_none(d):
     # none of the above: return None
     return None
 
+
 def remove_namespace(xml):
     regex = re.compile(' xmlns(:ns2)?="[^"]+"|(ns2:)|(xml:)')
     try:
@@ -128,6 +129,13 @@ class DictWrapper(object):
         Typical use: '.metadata.RequestId'
         """
         return self._response_dict.get('ResponseMetadata')
+    
+    @property
+    def request_id(self):
+        metadata = self._response_dict.get('ResponseMetadata')
+        if metadata:
+            return metadata.RequestId
+        return self._response_dict.get('RequestId')
 
 
 class DataWrapper(object):
@@ -225,7 +233,6 @@ class MWS(object):
         if self.auth_token:
             params['MWSAuthToken'] = self.auth_token
         params.update(extra_data)
-        
         request_description = '&'.join([
             '{key}={value}'.format(
                 key=k,
