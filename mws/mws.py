@@ -82,15 +82,15 @@ def remove_empty(d):
 
 def dt_iso_or_none(d):
     """
-    If d is a datetime, convert to isoformat
+    If d is a datetime, return isoformat()
+    TODO: if d is a string in iso8601 already, return it back
     Otherwise, return None
     """
     # If d is a datetime object, format it to iso and return
     if isinstance(d, datetime):
         return d.isoformat()
         
-    # if d is a string in iso8601 already, return it
-    # # pass for now
+    # TODO: if d is a string in iso8601 already, return it
     
     # none of the above: return None
     return None
