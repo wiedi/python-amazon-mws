@@ -982,21 +982,27 @@ class InboundShipments(MWS):
         if not args:
             raise MWSError("One or more item dictionary arguments REQUIRED.")
         
-        for a in args:
-            if not isinstance(a, dict):
+        for item in args:
+            if not isinstance(item, dict):
                 raise MWSError("item argument must be a dictionary.")
-            if not all(k in a for k in ('sku', 'quantity')):
+            if not all(k in item for k in ('sku', 'quantity')):
                 # Required keys of an item line missing
                 raise MWSError((
                     "item dictionary missing REQUIRED keys: 'sku', 'quantity'"
                     "\n[OPTIONAL keys: 'asin', 'condition', 'quantity_in_case']"
                 ))
+            quantity = item.get('quantity')
+            if quantity is not None:
+                quantity = str(quantity)
+            quantity_in_case = item.get('quantity_in_case')
+            if quantity_in_case is not None:
+                quantity_in_case = str(quantity_in_case)
             items.append({
-                'SellerSKU': a.get('sku'),
-                'Quantity': str(a.get('quantity')),
-                'ASIN': a.get('asin'),
-                'Condition': a.get('condition'),
-                'QuantityInCase': str(a.get('quantity_in_case')),
+                'SellerSKU': item.get('sku'),
+                'ASIN': item.get('asin'),
+                'Condition': item.get('condition'),
+                'Quantity': quantity,
+                'QuantityInCase': quantity_in_case,
             })
         
         data = dict(
@@ -1007,7 +1013,7 @@ class InboundShipments(MWS):
         )
         data.update(parsed_address)
         data.update(self.enumerate_keyed_param(
-            'InboundShipmentPlanRequestItem.member', items,
+            'InboundShipmentPlanRequestItems.member', items,
         ))
         return self.make_request(data, method="POST")
     
