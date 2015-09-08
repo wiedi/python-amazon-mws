@@ -249,41 +249,41 @@ class MWS(object):
         headers = {'User-Agent': 'python-amazon-mws/0.0.1 (Language=Python)'}
         headers.update(kwargs.get('extra_headers', {}))
 
+        # try:
+        # Some might wonder as to why I don't pass the params dict
+        # as the params argument to request. My answer is, here I have
+        # to get the url parsed string of params in order to sign it, so
+        # if I pass the params dict as params to request, request will
+        # repeat that step because it will need to convert the dict to
+        # a url parsed string, so why do it twice if I can just pass
+        # the full url :).
+        response = request(
+            method,
+            url,
+            data=kwargs.get('body', ''),
+            headers=headers,
+        )
+        # response.raise_for_status()
+        # When retrieving data from the response object,
+        # be aware that response.content returns the content in bytes
+        # while response.text calls response.content and
+        # converts it to unicode.
+        data = response.content
+
+        # I do not check the headers to decide which content structure
+        # to server simply because sometimes Amazon's MWS API returns
+        # XML error responses with "text/plain" as the Content-Type.
         try:
-            # Some might wonder as to why I don't pass the params dict
-            # as the params argument to request. My answer is, here I have
-            # to get the url parsed string of params in order to sign it, so
-            # if I pass the params dict as params to request, request will
-            # repeat that step because it will need to convert the dict to
-            # a url parsed string, so why do it twice if I can just pass
-            # the full url :).
-            response = request(
-                method,
-                url,
-                data=kwargs.get('body', ''),
-                headers=headers,
+            parsed_response = DictWrapper(
+                data, extra_data.get("Action") + "Result"
             )
-            response.raise_for_status()
-            # When retrieving data from the response object,
-            # be aware that response.content returns the content in bytes
-            # while response.text calls response.content and
-            # converts it to unicode.
-            data = response.content
+        except XMLError:
+            parsed_response = DataWrapper(data, response.headers)
 
-            # I do not check the headers to decide which content structure
-            # to server simply because sometimes Amazon's MWS API returns
-            # XML error responses with "text/plain" as the Content-Type.
-            try:
-                parsed_response = DictWrapper(
-                    data, extra_data.get("Action") + "Result"
-                )
-            except XMLError:
-                parsed_response = DataWrapper(data, response.headers)
-
-        except HTTPError as e:
-            error = MWSError(str(e))
-            error.response = e.response
-            raise error
+        # except HTTPError as e:
+            # error = MWSError(str(e))
+            # error.response = e.response
+            # raise e
 
         # Store the response object in the parsed_response for quick access
         parsed_response.response = response
