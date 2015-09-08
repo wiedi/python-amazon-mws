@@ -126,16 +126,6 @@ class DictWrapper(object):
         return root
     
     @property
-    def metadata(self):
-        """
-        Makes response metadata available, which otherwise
-        cannot be seen in `.parsed`.
-        
-        Typical use: '.metadata.RequestId'
-        """
-        return self._response_dict.get('ResponseMetadata')
-    
-    @property
     def request_id(self):
         metadata = self._response_dict.get('ResponseMetadata')
         if metadata:
