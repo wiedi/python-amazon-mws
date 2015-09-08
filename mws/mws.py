@@ -18,7 +18,6 @@ from datetime import datetime
 
 from requests import request
 from requests.exceptions import HTTPError
-from dateutil.parser import parse as dt_parse
 
 
 __all__ = [
@@ -210,13 +209,13 @@ class MWS(object):
         # Remove all keys with an empty value because
         # Amazon's MWS does not allow such a thing.
         extra_data = remove_empty(extra_data)
-        now = self.get_timestamp()
+        utc_now = datetime.utcnow()
 
         params = {
             'AWSAccessKeyId': self.access_key,
             self.ACCOUNT_TYPE: self.account_id,
             'SignatureVersion': '2',
-            'Timestamp': now,
+            'Timestamp': utc_now.isoformat(),
             'Version': self.version,
             'SignatureMethod': 'HmacSHA256',
         }
@@ -279,7 +278,7 @@ class MWS(object):
         # Store the response object in the parsed_response for quick access
         parsed_response.response = response
         # MWS recommends saving timestamp, so we make it available.
-        parsed_response.timestamp = dt_parse(now)
+        parsed_response.timestamp = utc_now
         return parsed_response
 
     def get_service_status(self):
