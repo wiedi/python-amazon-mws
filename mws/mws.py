@@ -4,7 +4,12 @@
 # Basic interface to Amazon MWS
 # Based on http://code.google.com/p/amazon-mws-python
 
-import urllib
+# import urllib
+try:
+    from urllib import quote as url_quote
+except ImportError:
+    # Python 3 version: quote is in the parse module of urllib.
+    from urllib.parse import quote as url_quote
 import hashlib
 import hmac
 import base64
@@ -236,7 +241,7 @@ class MWS(object):
         request_description = '&'.join([
             '{key}={value}'.format(
                 key=k,
-                value=urllib.parse.quote(params[k], safe='-_.~'),
+                value=url_quote(params[k], safe='-_.~'),
             ) for k in sorted(params)
         ])
         signature = self.calc_signature(method, request_description)
@@ -244,7 +249,7 @@ class MWS(object):
             domain=self.domain,
             uri=self.uri,
             description=request_description,
-            signature=urllib.parse.quote(signature),
+            signature=url_quote(signature),
         )
         headers = {'User-Agent': 'python-amazon-mws/0.0.1 (Language=Python)'}
         headers.update(kwargs.get('extra_headers', {}))
