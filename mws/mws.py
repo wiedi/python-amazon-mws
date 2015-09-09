@@ -183,6 +183,11 @@ class MWS(object):
     # ACCOUNT_TYPE = "Merchant"
     # Which is the name of the parameter for that specific account type.
     ACCOUNT_TYPE = "SellerId"
+    
+    ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING = (
+        "WARNING: this method has been deprecated. Please use "
+        "`MWS.action_by_next_token` in the future."
+    )
 
     def __init__(self, access_key, secret_key, account_id,
                  region='US', domain='', uri="", version="", auth_token=""):
@@ -485,6 +490,11 @@ class Feeds(MWS):
         }))
         return self.make_request(data)
 
+    def get_submission_list_by_next_token(self, token):
+        print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
+        data = dict(Action='GetFeedSubmissionListByNextToken', NextToken=token)
+        return self.make_request(data)
+    
     def get_feed_submission_count(self, feedtypes=None,
                                   processingstatuses=None, fromdate=None,
                                   todate=None):
@@ -590,6 +600,11 @@ class Reports(MWS):
         }))
         return self.make_request(data)
 
+    def get_report_list_by_next_token(self, token):
+        print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
+        data = dict(Action='GetReportListByNextToken', NextToken=token)
+        return self.make_request(data)
+    
     def get_report_request_count(self, report_types=(), processingstatuses=(),
                                  from_date=None, to_date=None):
         from_date = dt_iso_or_none(from_date)
@@ -625,6 +640,11 @@ class Reports(MWS):
         }))
         return self.make_request(data)
 
+    def get_report_request_list_by_next_token(self, token):
+        print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
+        data = dict(Action='GetReportRequestListByNextToken', NextToken=token)
+        return self.make_request(data)
+    
     def request_report(self, report_type,
                        start_date=None, end_date=None,
                        marketplaceids=()):
@@ -707,6 +727,11 @@ class Orders(MWS):
         }))
         return self.make_request(data)
 
+    def list_orders_by_next_token(self, token):
+        print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
+        data = dict(Action='ListOrdersByNextToken', NextToken=token)
+        return self.make_request(data)
+    
     def get_order(self, amazon_order_ids):
         """
         Returns orders based on the AmazonOrderId values that you specify.
@@ -729,6 +754,11 @@ class Orders(MWS):
         )
         return self.make_request(data)
 
+    def list_order_items_by_next_token(self, token):
+        print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
+        data = dict(Action='ListOrderItemsByNextToken', NextToken=token)
+        return self.make_request(data)
+    
 
 class Products(MWS):
     """
@@ -910,6 +940,18 @@ class Sellers(MWS):
         """
         data = dict(
             Action='ListMarketplaceParticipations'
+        )
+        return self.make_request(data)
+
+    def list_marketplace_participations_by_next_token(self, token):
+        """
+        Takes a "NextToken" and returns the same information as "list_marketplace_participations".
+        Based on the "NextToken".
+        """
+        print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
+        data = dict(
+            Action='ListMarketplaceParticipationsByNextToken',
+            NextToken=token
         )
         return self.make_request(data)
 
@@ -1177,6 +1219,11 @@ class Inventory(MWS):
         }))
         return self.make_request(data, "POST")
 
+    def list_inventory_supply_by_next_token(self, token):
+        print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
+        data = dict(Action='ListInventorySupplyByNextToken', NextToken=token)
+        return self.make_request(data, "POST")
+
 
 class OutboundShipments(MWS):
     URI = "/FulfillmentOutboundShipment/2010-10-01"
@@ -1221,4 +1268,13 @@ class Recommendations(MWS):
             MarketplaceId=marketplaceid,
             RecommendationCategory=recommendationcategory
         )
+        return self.make_request(data, "POST")
+
+    def list_recommendations_by_next_token(self, token):
+        """
+        Returns the next page of recommendations using the NextToken parameter.
+        """
+        print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
+        data = dict(Action="ListRecommendationsByNextToken",
+                    NextToken=token)
         return self.make_request(data, "POST")
