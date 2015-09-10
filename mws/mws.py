@@ -41,7 +41,7 @@ __all__ = [
 # http://docs.developer.amazonservices.com/en_US/dev_guide/DG_Endpoints.html
 MARKETPLACES = {
     "CA" : "https://mws.amazonservices.ca", #A2EUQ1WTGCTBG2
-    "US" : "https://mws.amazonservices.com", #ATVPDKIKX0DER",
+    "US" : "https://mws.amazonservices.com", #ATVPDKIKX0DER
     "DE" : "https://mws-eu.amazonservices.com", #A1PA6795UKMFR9
     "ES" : "https://mws-eu.amazonservices.com", #A1RKKUPIHCS9HS
     "FR" : "https://mws-eu.amazonservices.com", #A13V1IB3VIYZZH
@@ -428,7 +428,7 @@ class MWS(object):
             param += '.'
         
         if not isinstance(values, list) and not isinstance(values, tuple):
-            # If it's a single value dict, convert it to a list first
+            # If it's a single value, convert it to a list first
             values = [values,]
         
         if not isinstance(values[0], dict):
