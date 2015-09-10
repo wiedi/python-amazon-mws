@@ -130,7 +130,18 @@ class DictWrapper(object):
         metadata = self._response_dict.get('ResponseMetadata')
         if metadata:
             return metadata.RequestId
-        return self._response_dict.get('RequestId')
+        return self._response_dict.RequestId
+    
+    @property
+    def error(self):
+        if 'Error' in self._response_dict:
+            return self._response_dict.Error
+        return None
+    
+    def is_error(self):
+        if self._response_dict.get('Error'):
+            return True
+        return False
 
 
 class DataWrapper(object):
@@ -356,6 +367,9 @@ class MWS(object):
         # Shortcut for empty values
         if not values:
             return {}
+            
+        if not isinstance(values, list) and not isinstance(values, tuple):
+            values = [values,]
         
         # Ensure this enumerated param ends in '.'
         if not param.endswith('.'):
@@ -370,7 +384,6 @@ class MWS(object):
     
     def enumerate_params(self, params=None):
         """
-        Similar to enumerate_params.
         Takes a dict of params:
             each key is a param to be enumerated
             each value is a list of values for that param.
