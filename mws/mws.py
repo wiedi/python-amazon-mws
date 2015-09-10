@@ -428,7 +428,7 @@ class MWS(object):
             param += '.'
         
         if not isinstance(values, list) and not isinstance(values, tuple):
-            # If it's a single value dict, convert it to a list first
+            # If it's a single value, convert it to a list first
             values = [values,]
         
         if not isinstance(values[0], dict):
