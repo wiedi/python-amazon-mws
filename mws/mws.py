@@ -370,7 +370,6 @@ class MWS(object):
     
     def enumerate_params(self, params=None):
         """
-        Similar to enumerate_params.
         Takes a dict of params:
             each key is a param to be enumerated
             each value is a list of values for that param.
