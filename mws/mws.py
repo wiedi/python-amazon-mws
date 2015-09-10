@@ -130,7 +130,8 @@ class DictWrapper(object):
         metadata = self._response_dict.get('ResponseMetadata')
         if metadata:
             return metadata.RequestId
-        return self._response_dict.get('RequestId')
+        return self._response_dict.RequestId
+    
     @property
     def error(self):
         if 'Error' in self._response_dict:
