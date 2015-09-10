@@ -131,6 +131,16 @@ class DictWrapper(object):
         if metadata:
             return metadata.RequestId
         return self._response_dict.get('RequestId')
+    @property
+    def error(self):
+        if 'Error' in self._response_dict:
+            return self._response_dict.Error
+        return None
+    
+    def is_error(self):
+        if self._response_dict.get('Error'):
+            return True
+        return False
 
 
 class DataWrapper(object):
