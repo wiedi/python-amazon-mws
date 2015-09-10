@@ -367,6 +367,9 @@ class MWS(object):
         # Shortcut for empty values
         if not values:
             return {}
+            
+        if not isinstance(values, list) and not isinstance(values, tuple):
+            values = [values,]
         
         # Ensure this enumerated param ends in '.'
         if not param.endswith('.'):
