@@ -1345,11 +1345,18 @@ class InboundShipments(MWS):
     def list_inbound_shipments(self, shipment_ids=None,
                                shipment_statuses=None,
                                last_updated_after=None,
-                               last_updated_before=None):
+                               last_updated_before=None,
+                               next_token=None):
         """
         Returns list of shipments based on statuses, IDs, and/or
         before/after datetimes.
         """
+        if next_token:
+            return self.action_by_next_token(
+                'ListInboundShipments',
+                next_token
+            )
+        
         last_updated_after = dt_iso_or_none(last_updated_after)
         last_updated_before = dt_iso_or_none(last_updated_before)
         
@@ -1367,11 +1374,18 @@ class InboundShipments(MWS):
     
     def list_inbound_shipment_items(self, shipment_id=None,
                                     last_updated_after=None,
-                                    last_updated_before=None):
+                                    last_updated_before=None,
+                                    next_token=None):
         """
         Returns list of items within inbound shipments and/or
         before/after datetimes.
         """
+        if next_token:
+            return self.action_by_next_token(
+                'ListInboundShipmentItems',
+                next_token
+            )
+        
         last_updated_after = dt_iso_or_none(last_updated_after)
         last_updated_before = dt_iso_or_none(last_updated_before)
         
