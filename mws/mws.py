@@ -1048,14 +1048,30 @@ class InboundShipments(MWS):
                          'AMAZON_LABEL_PREFERRED']
     
     
-    def _parse_from_address(self, from_address):
+    def __init__(self, *args, **kwargs):
         """
-        Verifies and parses data in the address argument.
-        `address` is expected to be a dictionary containing keys
-        denoted by the KEY_CONFIG.
+        Allow the addition of a from_address dict during object initialization.
+        kwarg "from_address" is caught and popped here,
+        then calls set_ship_from_address.
+        If empty or left out, empty dict is set by default.
         """
-        if not from_address:
-            raise MWSError('Missing required `from_address` dict.')
+        self.from_address = {}
+        addr = kwargs.pop('from_address', None)
+        if addr is not None:
+            self.from_address = self.set_ship_from_address(addr)
+        super().__init__(*args, **kwargs)
+    
+    
+    def set_ship_from_address(self, address):
+        """
+        Verifies the structure of an address dictionary.
+        Once verified against the KEY_CONFIG, saves a parsed version
+        of that dictionary, ready to send to requests.
+        """
+        if not address:
+            raise MWSError('Missing required `address` dict.')
+        if not isinstance(address, dict):
+            raise MWSError("`address` must be a dict")
         
         KEY_CONFIG = [
             # Sets composed of:
@@ -1069,25 +1085,24 @@ class InboundShipments(MWS):
             ('postal_code', 'PostalCode', False, None),
             ('country', 'CountryCode', False, 'US'),
         ]
-        if not isinstance(from_address, dict):
-            raise MWSError("`from_address` must be a dict")
-        # Check if all REQUIRED keys in from_address exist:
-        if not all(k in from_address for k in
+        
+        # Check if all REQUIRED keys in address exist:
+        if not all(k in address for k in
                    [c[0] for c in KEY_CONFIG if c[2]]):
-            # Required parts of from_address missing
+            # Required parts of address missing
             raise MWSError((
-                "`from_address` dict missing required keys: {required}."
+                "`address` dict missing required keys: {required}."
                 "\n- Optional keys: {optional}."
             ).format(
                 required=", ".join([c[0] for c in KEY_CONFIG if c[2]]),
                 optional=", ".join([c[0] for c in KEY_CONFIG if not c[2]]),
             ))
         
-        parsed_address = {c[1]: from_address.get(c[0], c[3])
-                          for c in KEY_CONFIG}
-        parsed_address = {'ShipFromAddress.{}'.format(k): v
-                          for k, v in parsed_address.items()}
-        return parsed_address
+        # Passed tests. Assign values
+        addr = {'ShipFromAddress.{}'.format(c[1]):
+                  address.get(c[0], c[3])
+                for c in KEY_CONFIG}
+        self.from_address = addr
     
     
     def _parse_item_args(self, item_args, operation):
@@ -1151,9 +1166,8 @@ class InboundShipments(MWS):
         return items
     
     
-    def create_inbound_shipment_plan(self, *args, from_address={},
-                                     country_code='US', subdivision_code='',
-                                     label_preference=''):
+    def create_inbound_shipment_plan(self, *args, country_code='US',
+                                     subdivision_code='', label_preference=''):
         """
         Returns one or more inbound shipment plans, which provide the
         information you need to create inbound shipments.
@@ -1163,10 +1177,8 @@ class InboundShipments(MWS):
           REQUIRED: 'sku', 'quantity'
           OPTIONAL: 'asin', 'condition', 'quantity_in_case'
         
-        'from_address' is required and must be a dictionary with keys:
-          REQUIRED: 'name', 'address_1', 'city', 'country'
-          OPTIONAL: 'address_2', 'state_or_province',
-                    'district_or_county', 'postal_code'
+        'from_address' is required. Call 'set_ship_from_address' first before
+        using this operation.
         """
         if not args:
             raise MWSError("One or more `item` dict arguments required.")
@@ -1174,7 +1186,11 @@ class InboundShipments(MWS):
         label_preference = label_preference or None
         
         items = self._parse_item_args(args, 'CreateInboundShipmentPlan')
-        from_address = self._parse_from_address(from_address)
+        if not self.from_address:
+            raise MWSError((
+                "ShipFromAddress has not been set. "
+                "Please use `.set_ship_from_address()` first."
+            ))
         
         data = dict(
             Action='CreateInboundShipmentPlan',
@@ -1182,7 +1198,7 @@ class InboundShipments(MWS):
             ShipToCountrySubdivisionCode=subdivision_code,
             LabelPrepPreference=label_preference,
         )
-        data.update(from_address)
+        data.update(self.from_address)
         data.update(self.enumerate_keyed_param(
             'InboundShipmentPlanRequestItems.member', items,
         ))
@@ -1190,9 +1206,8 @@ class InboundShipments(MWS):
     
     
     def create_inbound_shipment(self, shipment_id, shipment_name,
-                                destination, *args, from_address={},
-                                shipment_status='', label_preference='', 
-                                case_required=False):
+                                destination, *args, shipment_status='',
+                                label_preference='', case_required=False):
         """
         Creates an inbound shipment to Amazon's fulfillment network.
         
@@ -1201,10 +1216,8 @@ class InboundShipments(MWS):
           REQUIRED: 'sku', 'quantity'
           OPTIONAL: 'quantity_in_case'
         
-        'from_address' is required and must be a dictionary with keys:
-          REQUIRED: 'name', 'address_1', 'city', 'country'
-          OPTIONAL: 'address_2', 'state_or_province',
-                    'district_or_county', 'postal_code'
+        'from_address' is required. Call 'set_ship_from_address' first before
+        using this operation.
         """
         assert isinstance(shipment_id, str), "`shipment_id` must be a string."
         assert isinstance(shipment_name, str), "`shipment_name` must be a string."
@@ -1215,7 +1228,12 @@ class InboundShipments(MWS):
         
         items = self._parse_item_args(args, 'CreateInboundShipment')
         
-        from_address = self._parse_from_address(from_address)
+        if not self.from_address:
+            raise MWSError((
+                "InboundShipmentHeader.ShipFromAddress has not been set. "
+                "Please use `.set_ship_from_address()` first."
+            ))
+        from_address = self.from_address
         from_address = {'InboundShipmentHeader.{}'.format(k): v
                         for k, v in from_address.items()}
         
