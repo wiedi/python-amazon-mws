@@ -991,86 +991,140 @@ class InboundShipments(MWS):
         'ListInboundShipments',
         'ListInboundShipmentItems',
     ]
+    SHIPMENT_STATUSES = ['WORKING', 'SHIPPED', 'CANCELLED']
+    DEFAULT_SHIP_STATUS = 'WORKING'
+    LABEL_PREFERENCES = ['SELLER_LABEL',
+                         'AMAZON_LABEL_ONLY',
+                         'AMAZON_LABEL_PREFERRED']
     
-    def create_inbound_shipment_plan(self, *args, from_address={}, **kwargs):
+    
+    def _parse_from_address(self, from_address):
         """
-        Returns one or more inbound shipment plans, which provide the
-        information you need to create one or more inbound shipments for
-        a set of items that you specify.
-        
-        One or more dictionaries must be passed as positional arguments.
-        Each dictionary must contain the following keys:
-          REQUIRED: 'sku', 'quantity'
-          OPTIONAL: 'asin', 'condition', 'quantity_in_case'
-        
-        Keyword arguments:
-        'from_address' (required). Dictionary of strings containing
-        ShipFromAddress data
-            REQUIRED: 'name', 'address_1', 'city', 'country'
-            OPTIONAL: 'address_2', 'state_or_province',
-                      'district_or_county', 'postal_code'
-        
-        'country_code' (optional) [defaults to 'US']
-        'subdivision_code' (optional)
-        'label_preference' (optional)
+        Verifies and parses data in the address argument.
+        `address` is expected to be a dictionary containing keys
+        denoted by the KEY_CONFIG.
         """
         if not from_address:
-            raise MWSError('Missing from_address keyword argument (Required)')
-        country_code = kwargs.get('country_code', 'US')
-        subdivision_code = kwargs.get('subdivision_code')
-        label_preference = kwargs.get('label_preference')
+            raise MWSError('Missing required `from_address` dict.')
         
+        KEY_CONFIG = [
+            # Sets composed of:
+            # (input_key, output_key, is_required, default_value)
+            ('name', 'Name', True, None),
+            ('address_1', 'AddressLine1', True, None),
+            ('address_2', 'AddressLine2', False, None),
+            ('city', 'City', True, None),
+            ('district_or_county', 'DistrictOrCounty', False, None),
+            ('state_or_province', 'StateOrProvinceCode', False, None),
+            ('postal_code', 'PostalCode', False, None),
+            ('country', 'CountryCode', False, 'US'),
+        ]
         if not isinstance(from_address, dict):
-            raise MWSError("from_address must be a dictionary")
-        if not all(k in from_address
-                   for k in ('name', 'address_1', 'city')):
+            raise MWSError("`from_address` must be a dict")
+        # Check if all REQUIRED keys in from_address exist:
+        if not all(k in from_address for k in
+                   [c[0] for c in KEY_CONFIG if c[2]]):
             # Required parts of from_address missing
             raise MWSError((
-                "REQUIRED keys missing from `from_address`: 'name', "
-                "'address_1', 'city'"
-                "\n[OPTIONAL: 'address2', 'state_or_province', "
-                "'district_or_county', 'postal_code', 'country' "
-                "(country defaults to 'US')]."
+                "`from_address` dict missing required keys: {required}."
+                "\n- Optional keys: {optional}."
+            ).format(
+                required=", ".join([c[0] for c in KEY_CONFIG if c[2]]),
+                optional=", ".join([c[0] for c in KEY_CONFIG if not c[2]]),
             ))
         
-        parsed_address = {
-            'Name': from_address.get('name'),
-            'AddressLine1': from_address.get('address_1'),
-            'AddressLine2': from_address.get('address_2'),
-            'City': from_address.get('city'),
-            'DistrictOrCounty': from_address.get('district_or_county'),
-            'StateOrProvinceCode': from_address.get('state_or_province'),
-            'CountryCode': from_address.get('country', 'US'),
-            'PostalCode': from_address.get('postal_code'),
-        }
+        parsed_address = {c[1]: from_address.get(c[0], c[3])
+                          for c in KEY_CONFIG}
         parsed_address = {'ShipFromAddress.{}'.format(k): v
                           for k, v in parsed_address.items()}
-        items = []
-        if not args:
-            raise MWSError("One or more item dictionary arguments REQUIRED.")
+        return parsed_address
+    
+    
+    def _parse_item_args(self, item_args, operation):
+        if not item_args:
+            raise MWSError("One or more `item` dict arguments required.")
         
-        for item in args:
+        # KEY_CONFIG to contain sets composed of:
+        # (input_key, output_key, is_required, default_value)
+        if operation == 'CreateInboundShipmentPlan':
+            KEY_CONFIG = [
+                ('sku', 'SellerSKU', True, None),
+                ('quantity', 'Quantity', True, None),
+                ('quantity_in_case', 'QuantityInCase', False, None),
+                ('asin', 'ASIN', False, None),
+                ('condition', 'Condition', False, None),
+            ]
+            quantity_key = 'Quantity'
+        else:
+            KEY_CONFIG = [
+                ('sku', 'SellerSKU', True, None),
+                ('quantity', 'QuantityShipped', True, None),
+                ('quantity_in_case', 'QuantityInCase', False, None),
+            ]
+            quantity_key = 'QuantityShipped'
+        
+        items = []
+        for item in item_args:
             if not isinstance(item, dict):
-                raise MWSError("item argument must be a dictionary.")
-            if not all(k in item for k in ('sku', 'quantity')):
+                raise MWSError("`item` argument must be a dict.")
+            if not all(k in item for k in
+                       [c[0] for c in KEY_CONFIG if c[2]]):
                 # Required keys of an item line missing
                 raise MWSError((
-                    "item dictionary missing REQUIRED keys: 'sku', 'quantity'"
-                    "\n[OPTIONAL keys: 'asin', 'condition', 'quantity_in_case']"
+                    "`item` dict missing required keys: {required}."
+                    "\n- Optional keys: {optional}."
+                ).format(
+                    required=', '.join([c[0] for c in KEY_CONFIG if c[2]]),
+                    optional=', '.join([c[0] for c in KEY_CONFIG if not c[2]]),
                 ))
+                
             quantity = item.get('quantity')
             if quantity is not None:
                 quantity = str(quantity)
+            
             quantity_in_case = item.get('quantity_in_case')
             if quantity_in_case is not None:
                 quantity_in_case = str(quantity_in_case)
-            items.append({
+            
+            item_dict = {
                 'SellerSKU': item.get('sku'),
-                'ASIN': item.get('asin'),
-                'Condition': item.get('condition'),
-                'Quantity': quantity,
+                quantity_key: quantity,
                 'QuantityInCase': quantity_in_case,
+            }
+            item_dict.update({
+                c[1]: item.get(c[0], c[3])
+                for c in KEY_CONFIG
+                if c[0] not in ['sku', 'quantity', 'quantity_in_case']
             })
+            items.append(item_dict)
+        print(items)
+        return items
+    
+    
+    def create_inbound_shipment_plan(self, *args, from_address={},
+                                     country_code='US', subdivision_code='',
+                                     label_preference=''):
+        """
+        Returns one or more inbound shipment plans, which provide the
+        information you need to create inbound shipments.
+        
+        At least one dictionary must be passed as `args`. Each dictionary
+        should contain the following keys:
+          REQUIRED: 'sku', 'quantity'
+          OPTIONAL: 'asin', 'condition', 'quantity_in_case'
+        
+        'from_address' is required and must be a dictionary with keys:
+          REQUIRED: 'name', 'address_1', 'city', 'country'
+          OPTIONAL: 'address_2', 'state_or_province',
+                    'district_or_county', 'postal_code'
+        """
+        if not args:
+            raise MWSError("One or more `item` dict arguments required.")
+        subdivision_code = subdivision_code or None
+        label_preference = label_preference or None
+        
+        items = self._parse_item_args(args, 'CreateInboundShipmentPlan')
+        from_address = self._parse_from_address(from_address)
         
         data = dict(
             Action='CreateInboundShipmentPlan',
@@ -1078,9 +1132,68 @@ class InboundShipments(MWS):
             ShipToCountrySubdivisionCode=subdivision_code,
             LabelPrepPreference=label_preference,
         )
-        data.update(parsed_address)
+        data.update(from_address)
         data.update(self.enumerate_keyed_param(
             'InboundShipmentPlanRequestItems.member', items,
+        ))
+        return self.make_request(data, method="POST")
+    
+    
+    def create_inbound_shipment(self, shipment_id, shipment_name,
+                                destination, *args, from_address={},
+                                shipment_status='', label_preference='', 
+                                case_required=False):
+        """
+        Creates an inbound shipment to Amazon's fulfillment network.
+        
+        At least one dictionary must be passed as `args`. Each dictionary
+        should contain the following keys:
+          REQUIRED: 'sku', 'quantity'
+          OPTIONAL: 'quantity_in_case'
+        
+        'from_address' is required and must be a dictionary with keys:
+          REQUIRED: 'name', 'address_1', 'city', 'country'
+          OPTIONAL: 'address_2', 'state_or_province',
+                    'district_or_county', 'postal_code'
+        """
+        assert isinstance(shipment_id, str), "`shipment_id` must be a string."
+        assert isinstance(shipment_name, str), "`shipment_name` must be a string."
+        assert isinstance(destination, str), "`destination` must be a string."
+        
+        if not args:
+            raise MWSError("One or more `item` dict arguments required.")
+        
+        items = self._parse_item_args(args, 'CreateInboundShipment')
+        
+        from_address = self._parse_from_address(from_address)
+        from_address = {'InboundShipmentHeader.{}'.format(k): v
+                        for k, v in from_address.items()}
+        
+        if shipment_status not in self.SHIPMENT_STATUSES:
+            # Status is required for `create` request.
+            # Set it to default.
+            shipment_status = self.DEFAULT_SHIP_STATUS
+        
+        if label_preference not in self.LABEL_PREFERENCES:
+            # Label preference not required. Set to None
+            label_preference = None
+        
+        # Explict True/False for case_required,
+        # written as the strings MWS expects.
+        case_required = 'true' if case_required else 'false'
+        
+        data = {
+            'Action': 'CreateInboundShipment',
+            'ShipmentId': shipment_id,
+            'InboundShipmentHeader.ShipmentName': shipment_name,
+            'InboundShipmentHeader.DestinationFulfillmentCenterId': destination,
+            'InboundShipmentHeader.LabelPrepPreference': label_preference,
+            'InboundShipmentHeader.AreCasesRequired': case_required,
+            'InboundShipmentHeader.ShipmentStatus': shipment_status,
+        }
+        data.update(from_address)
+        data.update(self.enumerate_keyed_param(
+            'InboundShipmentItems.member', items,
         ))
         return self.make_request(data, method="POST")
     
