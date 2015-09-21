@@ -129,8 +129,12 @@ class DictWrapper(object):
     def request_id(self):
         metadata = self._response_dict.get('ResponseMetadata')
         if metadata:
-            return metadata.RequestId
-        return self._response_dict.RequestId
+            r_id = metadata.get('RequestId')
+        else:
+            r_id = self._response_dict.get('RequestId')
+        if hasattr(r_id, 'value'):
+            return r_id['value']
+        return None
     
     @property
     def error(self):
