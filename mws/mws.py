@@ -1147,7 +1147,7 @@ class InboundShipments(MWS):
                 if c[0] not in ['sku', 'quantity', 'quantity_in_case']
             })
             items.append(item_dict)
-        print(items)
+        
         return items
     
     
