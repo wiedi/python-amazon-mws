@@ -114,7 +114,8 @@ class DictWrapper(object):
             list(self._mydict.keys())[0],
             self._mydict
         )
-
+    
+    
     @property
     def parsed(self):
         root = None
@@ -124,6 +125,7 @@ class DictWrapper(object):
             root = self._response_dict
         
         return root
+    
     
     @property
     def request_id(self):
@@ -136,14 +138,17 @@ class DictWrapper(object):
             return r_id['value']
         return None
     
+    
     @property
     def error(self):
         if 'Error' in self._response_dict:
             return self._response_dict.Error
         return None
     
+    
     def is_error(self):
         return bool(self.error)
+    
     
     def is_throttled(self):
         if not self.is_error():
@@ -162,7 +167,8 @@ class DataWrapper(object):
             hash_ = calc_md5(self.original)
             if header['content-md5'] != hash_:
                 raise MWSError("Wrong Contentlength, maybe amazon error...")
-
+    
+    
     @property
     def parsed(self):
         return self.original
@@ -172,15 +178,15 @@ class MWS(object):
     """
     Base Amazon API class
     """
-
+    
     # This is used to post/get to the different uris used by amazon per api
     # ie. /Orders/2011-01-01
     # All subclasses must define their own URI only if needed
     URI = "/"
-
+    
     # The API version varies in most amazon APIs
     VERSION = "2009-01-01"
-
+    
     # There seem to be some xml namespace issues. therefore every api subclass
     # is recommended to define its namespace, so that it can be referenced
     # like so AmazonAPISubclass.NS.
@@ -192,7 +198,7 @@ class MWS(object):
     # If the Operation is not listed here, self.action_by_next_token
     # will raise an error.
     NEXT_TOKEN_OPERATIONS = []
-
+    
     # Some APIs are available only to either a "Merchant" or "Seller"
     # the type of account needs to be sent in every call to the amazon MWS.
     # This constant defines the exact name of the parameter Amazon expects
@@ -203,11 +209,13 @@ class MWS(object):
     # Which is the name of the parameter for that specific account type.
     ACCOUNT_TYPE = "SellerId"
     
+    
     ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING = (
         "WARNING: this method has been deprecated. Please use "
         "`MWS.action_by_next_token` in the future."
     )
-
+    
+    
     def __init__(self, access_key, secret_key, account_id,
                  region='US', domain='', uri="", version="", auth_token=""):
         self.access_key = access_key
@@ -230,7 +238,8 @@ class MWS(object):
                 region=region,
             )
             raise MWSError(error_msg)
-
+    
+    
     def make_request(self, extra_data, method="GET", **kwargs):
         """
         Make request to Amazon MWS API with these parameters
@@ -309,7 +318,8 @@ class MWS(object):
         # MWS recommends saving timestamp, so we make it available.
         parsed_response.timestamp = utc_now
         return parsed_response
-
+    
+    
     def get_service_status(self):
         """
         Returns a GREEN, GREEN_I, YELLOW or RED status,
@@ -317,6 +327,7 @@ class MWS(object):
         it's being called from.
         """
         return self.make_request(extra_data=dict(Action='GetServiceStatus'))
+    
     
     def action_by_next_token(self, action, next_token):
         """
@@ -340,7 +351,8 @@ class MWS(object):
             NextToken=next_token
         )
         return self.make_request(data, method="POST")
-
+    
+    
     def calc_signature(self, method, request_description):
         """
         Calculate MWS signature to interface with Amazon
@@ -358,7 +370,8 @@ class MWS(object):
                 hashlib.sha256
             ).digest()
         )
-
+    
+    
     def _enumerate_param(self, param, values):
         """
         Builds a dictionary of an enumerated parameter.
@@ -390,6 +403,7 @@ class MWS(object):
             for idx, val in enumerate(values)
         }
     
+    
     def enumerate_params(self, params=None):
         """
         Takes a dict of params:
@@ -406,6 +420,7 @@ class MWS(object):
             params_output.update(self._enumerate_param(param, values))
         
         return params_output
+    
     
     def enumerate_keyed_param(self, param, values):
         """
@@ -454,18 +469,19 @@ class MWS(object):
             })
         
         return params
-        
-
+    
+    
 class Feeds(MWS):
     """
     Amazon MWS Feeds API
     """
-
+    
     ACCOUNT_TYPE = "Merchant"
     NEXT_TOKEN_OPERATIONS = [
         'GetFeedSubmissionList',
     ]
-
+    
+    
     def submit_feed(self, feed, feed_type, marketplaceids=None,
                     content_type="text/xml", purge='false'):
         """
@@ -489,7 +505,8 @@ class Feeds(MWS):
                 'Content-MD5': md, 'Content-Type': content_type
             }
         )
-
+    
+    
     def get_feed_submission_list(self, feedids=None, max_count=None,
                                  feedtypes=None, processingstatuses=None,
                                  fromdate=None, todate=None):
@@ -497,7 +514,7 @@ class Feeds(MWS):
         Returns a list of all feed submissions submitted in the
         previous 90 days that match the query parameters.
         """
-
+        
         data = dict(
             Action='GetFeedSubmissionList',
             MaxCount=max_count,
@@ -510,11 +527,13 @@ class Feeds(MWS):
            'FeedProcessingStatusList.Status.': processingstatuses,
         }))
         return self.make_request(data)
-
+    
+    
     def get_submission_list_by_next_token(self, token):
         print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
         data = dict(Action='GetFeedSubmissionListByNextToken', NextToken=token)
         return self.make_request(data)
+    
     
     def get_feed_submission_count(self, feedtypes=None,
                                   processingstatuses=None, fromdate=None,
@@ -532,7 +551,8 @@ class Feeds(MWS):
             'FeedProcessingStatusList.Status.': processingstatuses,
         }))
         return self.make_request(data)
-
+    
+    
     def cancel_feed_submissions(self, feedids=None, feedtypes=None,
                                 fromdate=None, todate=None):
         """
@@ -549,7 +569,8 @@ class Feeds(MWS):
             'FeedTypeList.Type.': feedtypes,
         }))
         return self.make_request(data)
-
+    
+    
     def get_feed_submission_result(self, feedid):
         """
         Returns the feed processing report and the Content-MD5 header.
@@ -559,21 +580,23 @@ class Feeds(MWS):
             FeedSubmissionId=feedid
         )
         return self.make_request(data)
-
-
+    
+    
 class Reports(MWS):
     """
     Amazon MWS Reports API
     """
-
+    
     ACCOUNT_TYPE = "Merchant"
     NEXT_TOKEN_OPERATIONS = [
         'GetReportRequestList',
         'GetReportScheduleList',
     ]
     
+    
     ## REPORTS ###
-
+    
+    
     def get_report(self, report_id):
         """
         Returns the contents of a report and the Content-MD5 header
@@ -584,7 +607,8 @@ class Reports(MWS):
             ReportId=report_id
         )
         return self.make_request(data)
-
+    
+    
     def get_report_count(self, report_types=(), acknowledged=None,
                          fromdate=None, todate=None):
         """
@@ -601,7 +625,8 @@ class Reports(MWS):
             'ReportTypeList.Type.': report_types,
         }))
         return self.make_request(data)
-
+    
+    
     def get_report_list(self, requestids=(), max_count=None, types=(),
                         acknowledged=None, fromdate=None, todate=None):
         """
@@ -620,11 +645,13 @@ class Reports(MWS):
             'ReportTypeList.Type.': types,
         }))
         return self.make_request(data)
-
+    
+    
     def get_report_list_by_next_token(self, token):
         print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
         data = dict(Action='GetReportListByNextToken', NextToken=token)
         return self.make_request(data)
+    
     
     def get_report_request_count(self, report_types=(), processingstatuses=(),
                                  from_date=None, to_date=None):
@@ -641,7 +668,8 @@ class Reports(MWS):
             'ReportProcessingStatusList.Status.': processingstatuses,
         }))
         return self.make_request(data)
-
+    
+    
     def get_report_request_list(self, requestids=(), types=(),
                                 processingstatuses=(), max_count=None,
                                 from_date=None, to_date=None):
@@ -660,11 +688,13 @@ class Reports(MWS):
             'ReportProcessingStatusList.Status.': processingstatuses,
         }))
         return self.make_request(data)
-
+    
+    
     def get_report_request_list_by_next_token(self, token):
         print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
         data = dict(Action='GetReportRequestListByNextToken', NextToken=token)
         return self.make_request(data)
+    
     
     def request_report(self, report_type,
                        start_date=None, end_date=None,
@@ -679,10 +709,11 @@ class Reports(MWS):
             'MarketplaceIdList.Id.': marketplaceids,
         }))
         return self.make_request(data)
-
-
+    
+    
     ### ReportSchedule ###
-
+    
+    
     def get_report_schedule_list(self, types=()):
         data = dict(
             Action='GetReportScheduleList'
@@ -691,7 +722,8 @@ class Reports(MWS):
             'ReportTypeList.Type.': types,
         }))
         return self.make_request(data)
-
+    
+    
     def get_report_schedule_count(self, types=()):
         data = dict(
             Action='GetReportScheduleCount'
@@ -700,13 +732,13 @@ class Reports(MWS):
             'ReportTypeList.Type.': types,
         }))
         return self.make_request(data)
-
-
+    
+    
 class Orders(MWS):
     """
     Amazon Orders API
     """
-
+    
     URI = "/Orders/2011-01-01"
     VERSION = "2011-01-01"
     NS = '{https://mws.amazonservices.com/Orders/2011-01-01}'
@@ -714,7 +746,8 @@ class Orders(MWS):
         'ListOrders',
         'ListOrderItems',
     ]
-
+    
+    
     def list_orders(self, marketplaceids, created_after=None,
                     created_before=None, last_updated_after=None,
                     last_updated_before=None, orderstatus=(),
@@ -747,11 +780,13 @@ class Orders(MWS):
             'PaymentMethod.Method.': payment_methods,
         }))
         return self.make_request(data)
-
+    
+    
     def list_orders_by_next_token(self, token):
         print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
         data = dict(Action='ListOrdersByNextToken', NextToken=token)
         return self.make_request(data)
+    
     
     def get_order(self, amazon_order_ids):
         """
@@ -764,7 +799,8 @@ class Orders(MWS):
             'AmazonOrderId.Id.': amazon_order_ids
         }))
         return self.make_request(data)
-
+    
+    
     def list_order_items(self, amazon_order_id):
         """
         Returns order items based on the AmazonOrderId that you specify.
@@ -774,23 +810,25 @@ class Orders(MWS):
             AmazonOrderId=amazon_order_id
         )
         return self.make_request(data)
-
+    
+    
     def list_order_items_by_next_token(self, token):
         print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
         data = dict(Action='ListOrderItemsByNextToken', NextToken=token)
         return self.make_request(data)
     
-
+    
 class Products(MWS):
     """
     Amazon MWS Products API
     """
-
+    
     URI = '/Products/2011-10-01'
     VERSION = '2011-10-01'
     NS = '{http://mws.amazonservices.com/schema/Products/2011-10-01}'
     NEXT_TOKEN_OPERATIONS = []
-
+    
+    
     def list_matching_products(self, marketplaceid, query, contextid=None):
         """
         Returns a list of products and their attributes, ordered by
@@ -806,7 +844,8 @@ class Products(MWS):
             QueryContextId=contextid
         )
         return self.make_request(data)
-
+    
+    
     def get_matching_product(self, marketplaceid, asins):
         """
         Returns a list of products and their attributes, based on a list of
@@ -820,7 +859,8 @@ class Products(MWS):
             'ASINList.ASIN.': asins,
         }))
         return self.make_request(data)
-
+    
+    
     def get_matching_product_for_id(self, marketplaceid, type, ids):
         """
         Returns a list of products and their attributes, based on a list of
@@ -838,7 +878,8 @@ class Products(MWS):
             'IdList.Id.': ids,
         }))
         return self.make_request(data)
-
+    
+    
     def get_competitive_pricing_for_sku(self, marketplaceid, skus):
         """
         Returns the current competitive pricing of a product,
@@ -852,7 +893,8 @@ class Products(MWS):
             'SellerSKUList.SellerSKU.': skus,
         }))
         return self.make_request(data)
-
+    
+    
     def get_competitive_pricing_for_asin(self, marketplaceid, asins):
         """
         Returns the current competitive pricing of a product,
@@ -866,7 +908,8 @@ class Products(MWS):
             'ASINList.ASIN.': asins,
         }))
         return self.make_request(data)
-
+    
+    
     def get_lowest_offer_listings_for_sku(self, marketplaceid, skus,
                                           condition="Any", excludeme="False"):
         """
@@ -883,7 +926,8 @@ class Products(MWS):
             'SellerSKUList.SellerSKU.', skus
         }))
         return self.make_request(data)
-
+    
+    
     def get_lowest_offer_listings_for_asin(self, marketplaceid, asins,
                                           condition="Any", excludeme="False"):
         """
@@ -900,7 +944,8 @@ class Products(MWS):
             'ASINList.ASIN.': asins,
         }))
         return self.make_request(data)
-
+    
+    
     def get_product_categories_for_sku(self, marketplaceid, sku):
         data = dict(
             Action='GetProductCategoriesForSKU',
@@ -908,7 +953,8 @@ class Products(MWS):
             SellerSKU=sku
         )
         return self.make_request(data)
-
+    
+    
     def get_product_categories_for_asin(self, marketplaceid, asin):
         data = dict(
             Action='GetProductCategoriesForASIN',
@@ -916,7 +962,8 @@ class Products(MWS):
             ASIN=asin
         )
         return self.make_request(data)
-
+    
+    
     def get_my_price_for_sku(self, marketplaceid, skus, condition=None):
         data = dict(
             Action='GetMyPriceForSKU',
@@ -927,7 +974,8 @@ class Products(MWS):
             'SellerSKUList.SellerSKU.': skus,
         }))
         return self.make_request(data)
-
+    
+    
     def get_my_price_for_asin(self, marketplaceid, asins, condition=None):
         data = dict(
             Action='GetMyPriceForASIN',
@@ -938,19 +986,20 @@ class Products(MWS):
             'ASINList.ASIN.': asins,
         }))
         return self.make_request(data)
-
-
+    
+    
 class Sellers(MWS):
     """
     Amazon MWS Sellers API
     """
-
+    
     URI = '/Sellers/2011-07-01'
     VERSION = '2011-07-01'
     NS = '{http://mws.amazonservices.com/schema/Sellers/2011-07-01}'
     NEXT_TOKEN_OPERATIONS = [
         'ListMarketplaceParticipations',
     ]
+    
     
     def list_marketplace_participations(self):
         """
@@ -963,7 +1012,8 @@ class Sellers(MWS):
             Action='ListMarketplaceParticipations'
         )
         return self.make_request(data)
-
+    
+    
     def list_marketplace_participations_by_next_token(self, token):
         """
         Takes a "NextToken" and returns the same information as "list_marketplace_participations".
@@ -1212,7 +1262,8 @@ class InboundShipments(MWS):
             'SellerSKUList.ID.': skus,
         }))
         return self.make_request(data, method="POST")
-        
+    
+    
     def get_prep_instructions_for_asin(self, asins=[], country_code=None):
         """
         Returns item preparation instructions to help with
@@ -1228,7 +1279,8 @@ class InboundShipments(MWS):
             'ASINList.ID.': asins,
         }))
         return self.make_request(data, method="POST")
-        
+    
+    
     def get_package_labels(self, shipment_id, num_packages, page_type=None):
         """ 
         Returns PDF document data for printing package labels for
@@ -1241,7 +1293,8 @@ class InboundShipments(MWS):
             NumberOfPackages=str(num_packages),
         )
         return self.make_request(data, method="POST")
-        
+    
+    
     def get_transport_content(self, shipment_id):
         """
         Returns current transportation information about an
@@ -1253,6 +1306,7 @@ class InboundShipments(MWS):
         )
         return self.make_request(data, method="POST")
     
+    
     def estimate_transport_request(self, shipment_id):
         """
         Requests an estimate of the shipping cost for an inbound shipment.
@@ -1262,7 +1316,8 @@ class InboundShipments(MWS):
             ShipmentId=shipment_id,
         )
         return self.make_request(data, method="POST")
-        
+    
+    
     def void_transport_request(self, shipment_id):
         """
         Voids a previously-confirmed request to ship your inbound shipment
@@ -1273,7 +1328,8 @@ class InboundShipments(MWS):
             ShipmentId=shipment_id
         )
         return self.make_request(data, method="POST")
-        
+    
+    
     def get_bill_of_lading(self, shipment_id):
         """
         Returns PDF document data for printing a bill of lading
@@ -1284,6 +1340,7 @@ class InboundShipments(MWS):
             ShipmentId=shipment_id,
         )
         return self.make_request(data, "POST")
+    
     
     def list_inbound_shipments(self, shipment_ids=None,
                                shipment_statuses=None,
@@ -1307,6 +1364,7 @@ class InboundShipments(MWS):
         }))
         return self.make_request(data, method="POST")
     
+    
     def list_inbound_shipment_items(self, shipment_id=None,
                                     last_updated_after=None,
                                     last_updated_before=None):
@@ -1324,13 +1382,13 @@ class InboundShipments(MWS):
             LastUpdatedBefore=last_updated_before,
         )
         return self.make_request(data, method="POST")
-
-
+    
+    
 class Inventory(MWS):
     """
     Amazon MWS Inventory Fulfillment API
     """
-
+    
     URI = '/FulfillmentInventory/2010-10-01'
     VERSION = '2010-10-01'
     NS = "{http://mws.amazonaws.com/FulfillmentInventory/2010-10-01}"
@@ -1338,12 +1396,13 @@ class Inventory(MWS):
         'ListInventorySupply',
     ]
     
+    
     def list_inventory_supply(self, skus=(), datetime=None,
                               response_group='Basic'):
         """
         Returns information on available inventory
         """
-
+    
         data = dict(Action='ListInventorySupply',
                     QueryStartDateTime=datetime,
                     ResponseGroup=response_group,
@@ -1352,13 +1411,14 @@ class Inventory(MWS):
             'SellerSkus.member.': skus,
         }))
         return self.make_request(data, "POST")
-
+    
+    
     def list_inventory_supply_by_next_token(self, token):
         print(self.ACTION_BY_NEXT_TOKEN_DEPRECATION_WARNING)
         data = dict(Action='ListInventorySupplyByNextToken', NextToken=token)
         return self.make_request(data, "POST")
-
-
+    
+    
 class OutboundShipments(MWS):
     URI = "/FulfillmentOutboundShipment/2010-10-01"
     VERSION = "2010-10-01"
@@ -1366,44 +1426,47 @@ class OutboundShipments(MWS):
         'ListAllFulfillmentOrders',
     ]
     # To be completed
-
-
+    
+    
 class Recommendations(MWS):
-
+    
     """
     Amazon MWS Recommendations API
     """
-
+    
     URI = '/Recommendations/2013-04-01'
     VERSION = '2013-04-01'
     NS = "{https://mws.amazonservices.com/Recommendations/2013-04-01}"
-
+    
+    
     def get_last_updated_time_for_recommendations(self, marketplaceid):
         """
         Checks whether there are active recommendations for each
         category for the given marketplace, and if there are, returns
         the time when recommendations were last updated for each category.
         """
-
+    
         data = dict(
             Action='GetLastUpdatedTimeForRecommendations',
             MarketplaceId=marketplaceid,
         )
         return self.make_request(data, "POST")
-
+    
+    
     def list_recommendations(self, marketplaceid, recommendationcategory=None):
         """
         Returns your active recommendations for a specific category or
         for all categories for a specific marketplace.
         """
-
+    
         data = dict(
             Action="ListRecommendations",
             MarketplaceId=marketplaceid,
             RecommendationCategory=recommendationcategory
         )
         return self.make_request(data, "POST")
-
+    
+    
     def list_recommendations_by_next_token(self, token):
         """
         Returns the next page of recommendations using the NextToken parameter.
