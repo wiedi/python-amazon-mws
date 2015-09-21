@@ -143,9 +143,7 @@ class DictWrapper(object):
         return None
     
     def is_error(self):
-        if self._response_dict.get('Error'):
-            return True
-        return False
+        return bool(self.error)
 
 
 class DataWrapper(object):
