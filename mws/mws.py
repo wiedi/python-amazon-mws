@@ -144,6 +144,12 @@ class DictWrapper(object):
     
     def is_error(self):
         return bool(self.error)
+    
+    def is_throttled(self):
+        if not self.is_error():
+            return False
+        code = self.error.Code
+        return code == 'RequestThrottled'
 
 
 class DataWrapper(object):
