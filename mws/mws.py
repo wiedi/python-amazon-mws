@@ -944,8 +944,23 @@ class Products(MWS):
             'ASINList.ASIN.': asins,
         }))
         return self.make_request(data)
-    
-    
+
+
+    def get_lowest_priced_offers_for_sku(self, marketplaceid, sku, condition="Any"):
+        data = dict(Action='GetLowestPricedOffersForSKU',
+                    MarketplaceId=marketplaceid,
+                    SellerSKU=sku,
+                    ItemCondition=condition)
+        return self.make_request(data)
+
+    def get_lowest_priced_offers_for_asin(self, marketplaceid, asin, condition="Any"):
+        data = dict(Action='GetLowestPricedOffersForASIN',
+                    MarketplaceId=marketplaceid,
+                    ASIN=asin,
+                    ItemCondition=condition)
+        return self.make_request(data)
+
+
     def get_product_categories_for_sku(self, marketplaceid, sku):
         data = dict(
             Action='GetProductCategoriesForSKU',
